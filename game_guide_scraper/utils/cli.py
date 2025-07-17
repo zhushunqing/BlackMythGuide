@@ -500,7 +500,7 @@ def format_time(seconds: float) -> str:
 
 def prompt_yes_no(question: str, default: bool = True) -> bool:
     """
-    提示用户回答是/否问题
+    提示用户回答Y/N问题
     
     参数:
         question: 问题
@@ -509,8 +509,8 @@ def prompt_yes_no(question: str, default: bool = True) -> bool:
     返回:
         用户的回答（True表示是，False表示否）
     """
-    default_prompt = "是" if default else "否"
-    prompt = f"{question} [是/否] (默认: {default_prompt}): "
+    default_prompt = "Y" if default else "N"
+    prompt = f"{question} [Y/N] (默认: {default_prompt}): "
     
     while True:
         response = input(prompt).strip().lower()
@@ -524,7 +524,7 @@ def prompt_yes_no(question: str, default: bool = True) -> bool:
         if response in ['n', 'no', '否', '不', 'false', 'f', '0']:
             return False
             
-        print("请输入 '是' 或 '否'")
+        print("请输入 'Y' 或 'N'")
 
 
 def prompt_choice(question: str, choices: List[Tuple[str, str]], default: Optional[str] = None) -> str:
