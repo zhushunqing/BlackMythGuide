@@ -169,6 +169,11 @@ python -m game_guide_scraper.main
 
 # 指定输出目录和文件名
 python -m game_guide_scraper.main --output-dir "wukong_guide" --output-file "complete_guide.md"
+
+# 指定参数抓取完整攻略示例
+python -m game_guide_scraper.main --start-url "https://www.gamersky.com/handbook/202409/1810891
+.shtml" --output-dir "Guide_B" --output-file "guide.md" --non-interactive --delay 2.0 --max-pages 50
+
 ```
 
 ### 图片处理
