@@ -1,0 +1,23 @@
+{
+    "# 基本配置": "以下是基本配置项",
+    "start_url": "https://www.gamersky.com/handbook/202408/1803231.shtml",
+    "output_dir": "output",
+    "output_file": "guide.md",
+    
+    "# 图片配置": "以下是图片相关配置项",
+    "download_images": true,
+    "image_dir": "output/images",
+    "image_delay": 0.5,
+    
+    "# 爬虫配置": "以下是爬虫行为相关配置项",
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+    "delay": 1.0,
+    "max_retries": 3,
+    "retry_delay": 2.0,
+    "timeout": 30,
+    "continue_on_error": true,
+    
+    "# 输出配置": "以下是输出和日志相关配置项",
+    "show_progress_bar": true,
+    "log_file": "crawler.log"
+}
