@@ -41,6 +41,20 @@ class Parser:
             'iframe'
         ]
         
+        # 定义需要过滤的文本内容关键词
+        self.filter_keywords = [
+            '更多相关内容请关注',
+            '责任编辑',
+            '友情提示：支持键盘',
+            '翻页',
+            '本文是否解决了您的问题',
+            '已解决',
+            '未解决',
+            '文章内容导航',
+            '上一页',
+            '下一页',
+        ]
+        
     def parse_content(self, html: str) -> Optional[Dict[str, Any]]:
         """
         解析HTML内容，提取标题、正文、图片URL等
@@ -193,7 +207,7 @@ class Parser:
             # 处理文本段落
             elif element.name == 'p' or (element.name == 'div' and not element.find(['div', 'p'])):
                 text = element.text.strip()
-                if text:
+                if text and not self._should_filter_text(text):
                     content.append({'type': 'text', 'value': text})
                     
         return content
@@ -272,9 +286,55 @@ class Parser:
         description = alt or title or ''
         
         # 过滤掉小图标、广告图片等
-        # 通常这些图片的URL中会包含特定的关键词
-        if any(keyword in img_url.lower() for keyword in ['icon', 'logo', 'banner', 'ad', 'advertisement']):
-            if not description:  # 如果没有描述，可能是装饰性图片
-                return None
+        # 通常这些图片的URL中会包含特定的关键词或文件名
+        filter_keywords = ['icon', 'logo', 'banner', 'ad', 'advertisement']
+        filter_filenames = ['banner923.jpg']
+        
+        # 检查URL中是否包含过滤关键词
+        if any(keyword in img_url.lower() for keyword in filter_keywords):
+            return None
+            
+        # 检查是否是特定的需要过滤的文件名
+        if any(filename in img_url.lower() for filename in filter_filenames):
+            return None
                 
         return {'type': 'image', 'url': img_url, 'alt': description}
+    
+    def _should_filter_text(self, text: str) -> bool:
+        """
+        判断文本是否应该被过滤掉
+        
+        参数:
+            text: 要检查的文本
+            
+        返回:
+            True表示应该过滤，False表示保留
+        """
+        import re
+        
+        # 检查是否包含过滤关键词
+        for keyword in self.filter_keywords:
+            if keyword in text:
+                return True
+        
+        # 检查是否是单独的页面标题（如"第1页：小妖-第一回-狼斥候"）
+        # 这种格式应该保留，不过滤
+        single_page_pattern = r'^第\d+页：[^第]*$'
+        if re.match(single_page_pattern, text.strip()):
+            return False  # 保留单独的页面标题
+        
+        # 检查是否是包含多个页码的长列表
+        # 如果文本中包含多个"第X页："模式，则过滤掉
+        page_matches = re.findall(r'第\d+页：', text)
+        if len(page_matches) > 1:
+            return True  # 过滤包含多个页码的文本
+            
+        # 检查是否是长页码列表（包含很多页码信息的文本）
+        if len(text) > 200 and '第' in text and '页：' in text:
+            return True
+            
+        # 检查是否只包含数字和空格（可能是页码）
+        if re.match(r'^[\d\s]+$', text) and len(text.split()) > 3:
+            return True
+            
+        return False
