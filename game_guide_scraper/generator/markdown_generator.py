@@ -46,26 +46,41 @@ class MarkdownGenerator:
         if source_url:
             markdown.append(f"*来源: [{source_url}]({source_url})*\n")
             
-        # 添加目录
+        # 添加目录（只包含页面标题，不包含默认的文档标题）
         toc = content.get('toc', [])
-        if toc:
+        page_titles = content.get('page_titles', [])
+        
+        if page_titles:
             markdown.append("## 目录\n")
-            markdown.append(self.generate_toc_markdown(toc))
+            # 只生成页面标题的目录，跳过默认的文档标题
+            page_toc = [item for item in toc if item.get('level', 0) > 0]
+            markdown.append(self.generate_toc_markdown(page_toc))
             markdown.append("\n---\n")
+            
+        # 获取页面标题信息
+        page_titles = content.get('page_titles', [])
+        page_title_map = {pt['full_title']: pt for pt in page_titles}
             
         # 添加章节内容
         chapters = content.get('chapters', [])
         for i, chapter in enumerate(chapters):
-            chapter_num = i + 1
-            chapter_title = chapter.get('title', f"章节 {chapter_num}")
-            chapter_id = chapter.get('id', f"chapter-{chapter_num}")
-            
-            # 添加章节标题
-            markdown.append(f"## {chapter_num}. {chapter_title} <a id=\"{chapter_id}\"></a>\n")
-            
-            # 添加章节内容
-            chapter_content = chapter.get('content', [])
-            markdown.append(self.generate_content_markdown(chapter_content))
+            # 如果有页面标题，则不显示默认的章节标题
+            if page_titles:
+                # 直接添加章节内容，不添加章节标题
+                chapter_content = chapter.get('content', [])
+                markdown.append(self.generate_content_markdown_with_anchors(chapter_content, page_title_map))
+            else:
+                # 如果没有页面标题，则使用默认的章节结构
+                chapter_num = i + 1
+                chapter_title = chapter.get('title', f"章节 {chapter_num}")
+                chapter_id = chapter.get('id', f"chapter-{chapter_num}")
+                
+                # 添加章节标题
+                markdown.append(f"## {chapter_num}. {chapter_title} <a id=\"{chapter_id}\"></a>\n")
+                
+                # 添加章节内容
+                chapter_content = chapter.get('content', [])
+                markdown.append(self.generate_content_markdown_with_anchors(chapter_content, page_title_map))
             
             # 添加小节内容
             sections = chapter.get('sections', [])
@@ -79,7 +94,7 @@ class MarkdownGenerator:
                 
                 # 添加小节内容
                 section_content = section.get('content', [])
-                markdown.append(self.generate_content_markdown(section_content))
+                markdown.append(self.generate_content_markdown_with_anchors(section_content, page_title_map))
                 
         return '\n'.join(markdown)
         
@@ -129,6 +144,118 @@ class MarkdownGenerator:
                 if value:
                     # 根据级别添加不同数量的#
                     heading_prefix = '#' * (level + 1)  # +1是因为在章节和小节下，标题级别需要增加
+                    
+                    if id_str:
+                        markdown.append(f"{heading_prefix} {value} <a id=\"{id_str}\"></a>\n")
+                    else:
+                        markdown.append(f"{heading_prefix} {value}\n")
+                        
+            elif item_type == 'list':
+                # 处理列表内容
+                items = item.get('items', [])
+                ordered = item.get('ordered', False)
+                
+                if items:
+                    markdown.append("\n")
+                    for i, list_item in enumerate(items):
+                        if ordered:
+                            markdown.append(f"{i + 1}. {list_item}\n")
+                        else:
+                            markdown.append(f"- {list_item}\n")
+                    markdown.append("\n")
+                    
+            elif item_type == 'table':
+                # 处理表格内容
+                headers = item.get('headers', [])
+                rows = item.get('rows', [])
+                
+                if headers and rows:
+                    # 添加表头
+                    markdown.append("| " + " | ".join(headers) + " |\n")
+                    # 添加分隔线
+                    markdown.append("| " + " | ".join(["---"] * len(headers)) + " |\n")
+                    # 添加表格内容
+                    for row in rows:
+                        markdown.append("| " + " | ".join(row) + " |\n")
+                    markdown.append("\n")
+                    
+            elif item_type == 'code':
+                # 处理代码内容
+                value = item.get('value', '')
+                language = item.get('language', '')
+                
+                if value:
+                    if language:
+                        markdown.append(f"```{language}\n{value}\n```\n")
+                    else:
+                        markdown.append(f"```\n{value}\n```\n")
+                        
+            elif item_type == 'quote':
+                # 处理引用内容
+                value = item.get('value', '')
+                
+                if value:
+                    # 为每一行添加>前缀
+                    lines = value.split('\n')
+                    for line in lines:
+                        markdown.append(f"> {line}\n")
+                    markdown.append("\n")
+                    
+        return '\n'.join(markdown)
+    
+    def generate_content_markdown_with_anchors(self, content_list: List[Dict[str, Any]], page_title_map: Dict[str, Dict[str, Any]]) -> str:
+        """
+        生成带页面标题锚点的内容Markdown
+        
+        参数:
+            content_list: 内容元素列表
+            page_title_map: 页面标题映射字典
+            
+        返回:
+            内容的Markdown字符串
+        """
+        markdown = []
+        
+        for item in content_list:
+            item_type = item.get('type', '')
+            
+            if item_type == 'text':
+                # 处理文本内容
+                value = item.get('value', '')
+                if value:
+                    # 检查是否是页面标题
+                    if value in page_title_map:
+                        page_info = page_title_map[value]
+                        # 为页面标题添加锚点
+                        markdown.append(f"\n## {value} <a id=\"{page_info['id']}\"></a>\n")
+                    else:
+                        markdown.append(f"{value}\n")
+                        
+            elif item_type == 'image':
+                # 处理图片内容
+                url = item.get('url', '')
+                alt = item.get('alt', '')
+                
+                if url:
+                    # 优先使用本地路径
+                    if url in self.image_path_mapping:
+                        local_path = self.image_path_mapping[url]
+                        # 使用相对路径
+                        rel_path = os.path.basename(local_path)
+                        markdown.append(f"![{alt}](images/{rel_path})\n")
+                    else:
+                        # 使用原始URL
+                        markdown.append(f"![{alt}]({url})\n")
+                        
+            elif item_type == 'heading':
+                # 处理标题内容
+                level = item.get('level', 3)  # 默认为h3
+                value = item.get('value', '')
+                id_str = item.get('id', '')
+                
+                if value:
+                    # 根据级别添加不同数量的#
+                    heading_prefix = '#' * (level + 2)  # +2是因为在章节下，标题级别需要增加
                     
                     if id_str:
                         markdown.append(f"{heading_prefix} {value} <a id=\"{id_str}\"></a>\n")
