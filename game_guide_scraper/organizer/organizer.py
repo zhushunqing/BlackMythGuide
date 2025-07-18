@@ -89,77 +89,33 @@ class ContentOrganizer:
             'title': self.title,
             'source_url': self.source_url,
             'chapters': [],
-            'toc': []
+            'toc': [],
+            'page_titles': []  # 添加页面标题列表
         }
         
         # 确保页面按页码排序
         self.pages.sort(key=lambda p: p.get('page_number', 0))
         
-        # 分析页面标题，识别章节和小节结构
-        chapter_candidates = self._identify_chapter_structure()
+        # 收集页面标题信息
+        page_titles = self._extract_page_titles()
+        document['page_titles'] = page_titles
         
-        # 处理单章节情况（所有页面属于同一章节或没有明确的章节结构）
-        if len(chapter_candidates) <= 1:
-            chapter = {
-                'title': self.title,
-                'id': self._generate_id(self.title),
-                'content': [],
-                'sections': []
-            }
+        # 创建单个章节包含所有内容
+        chapter = {
+            'title': self.title,
+            'id': self._generate_id(self.title),
+            'content': [],
+            'sections': []
+        }
+        
+        # 合并所有页面的内容
+        for page in self.pages:
+            chapter['content'].extend(page.get('content', []))
             
-            # 合并所有页面的内容
-            for page in self.pages:
-                chapter['content'].extend(page.get('content', []))
-                
-            document['chapters'].append(chapter)
-        else:
-            # 处理多章节情况
-            for chapter_info in chapter_candidates:
-                chapter_title = chapter_info['title']
-                chapter_pages = chapter_info['pages']
-                section_candidates = chapter_info.get('sections', [])
-                
-                # 创建章节
-                chapter = {
-                    'title': chapter_title,
-                    'id': self._generate_id(chapter_title),
-                    'content': [],
-                    'sections': []
-                }
-                
-                # 处理章节内容
-                if not section_candidates:
-                    # 如果没有小节，直接合并所有页面内容
-                    for page in chapter_pages:
-                        chapter['content'].extend(page.get('content', []))
-                else:
-                    # 如果有小节，先处理章节自身的内容
-                    chapter_own_pages = [p for p in chapter_pages if p not in [s['pages'][0] for s in section_candidates]]
-                    for page in chapter_own_pages:
-                        chapter['content'].extend(page.get('content', []))
-                    
-                    # 处理小节内容
-                    for section_info in section_candidates:
-                        section_title = section_info['title']
-                        section_pages = section_info['pages']
-                        
-                        # 创建小节
-                        section = {
-                            'title': section_title,
-                            'id': self._generate_id(section_title),
-                            'content': []
-                        }
-                        
-                        # 合并小节页面内容
-                        for page in section_pages:
-                            section['content'].extend(page.get('content', []))
-                            
-                        chapter['sections'].append(section)
-                
-                document['chapters'].append(chapter)
+        document['chapters'].append(chapter)
         
-        # 生成目录
-        document['toc'] = self.generate_toc(document['chapters'])
+        # 生成目录（基于页面标题）
+        document['toc'] = self.generate_page_based_toc(page_titles)
         
         return document
         
@@ -310,6 +266,74 @@ class ContentOrganizer:
                     })
                     
         return subsections
+    
+    def _extract_page_titles(self) -> List[Dict[str, Any]]:
+        """
+        从页面内容中提取页面标题
+        
+        返回:
+            页面标题列表，每个元素包含页码、标题和ID
+        """
+        page_titles = []
+        
+        for page in self.pages:
+            page_number = page.get('page_number', 0)
+            
+            # 在页面内容中查找页面标题（格式如"第X页：标题"）
+            content = page.get('content', [])
+            for item in content:
+                if item.get('type') == 'text':
+                    text = item.get('value', '')
+                    # 匹配"第X页：标题"格式
+                    import re
+                    match = re.match(r'^第(\d+)页：(.+)$', text.strip())
+                    if match:
+                        page_num = int(match.group(1))
+                        title = match.group(2).strip()
+                        
+                        page_titles.append({
+                            'page_number': page_num,
+                            'title': title,
+                            'full_title': text.strip(),
+                            'id': self._generate_id(f"page-{page_num}-{title}"),
+                            'url': page.get('url', '')
+                        })
+                        break  # 找到页面标题后跳出循环
+        
+        # 按页码排序
+        page_titles.sort(key=lambda x: x['page_number'])
+        return page_titles
+    
+    def generate_page_based_toc(self, page_titles: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        基于页面标题生成目录
+        
+        参数:
+            page_titles: 页面标题列表
+            
+        返回:
+            目录项列表
+        """
+        toc = []
+        
+        # 添加文档标题作为顶级目录项
+        if self.title:
+            toc.append({
+                'level': 0,
+                'title': self.title,
+                'id': 'document-title'
+            })
+        
+        # 添加每个页面标题到目录
+        for page_info in page_titles:
+            toc.append({
+                'level': 1,
+                'title': page_info['full_title'],
+                'id': page_info['id'],
+                'page_number': page_info['page_number']
+            })
+        
+        return toc
         
     def _generate_id(self, title: str) -> str:
         """
