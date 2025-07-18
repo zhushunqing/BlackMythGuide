@@ -76,6 +76,7 @@ class Controller:
             'download_images': True,  # 是否下载图片
             'image_dir': None,  # 图片保存目录，如果为None则使用output_dir/images
             'image_delay': 0.5,  # 图片下载间隔时间（秒）
+            'skip_existing_images': True,  # 是否跳过已存在的图片文件
             
             # 进度报告配置
             'show_progress_bar': True,  # 是否显示进度条
@@ -201,7 +202,8 @@ class Controller:
                     image_items = [item for item in content.get('content', []) if item.get('type') == 'image']
                     if image_items:
                         self.report_progress(f"正在下载第 {page_number} 页的图片 ({len(image_items)} 张)")
-                        download_results = self.image_downloader.download_all_images(image_items)
+                        skip_existing = self.config.get('skip_existing_images', True)
+                        download_results = self.image_downloader.download_all_images(image_items, skip_existing=skip_existing)
                         
                         # 统计图片下载结果
                         successful_downloads = sum(1 for item in image_items if 'local_path' in item)
