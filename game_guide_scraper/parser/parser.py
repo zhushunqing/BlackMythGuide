@@ -252,6 +252,14 @@ class Parser:
         if not img_url:
             return None
             
+        # 处理游民星空的高清原图URL
+        # 游民星空的缩略图URL格式：image001_S.jpg
+        # 高清原图URL格式：image001.jpg
+        if 'gamersky.com' in img_url and '_S.jpg' in img_url:
+            img_url = img_url.replace('_S.jpg', '.jpg')
+        elif 'gamersky.com' in img_url and '_S.png' in img_url:
+            img_url = img_url.replace('_S.png', '.png')
+            
         # 处理相对URL
         if not img_url.startswith(('http://', 'https://')):
             # 由于这里没有base_url参数，我们只能保留相对路径

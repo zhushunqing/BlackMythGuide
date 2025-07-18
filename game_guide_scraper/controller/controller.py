@@ -142,6 +142,13 @@ class Controller:
         
         # 抓取和处理页面
         while url:
+            # 检查预览模式限制
+            if self.config.get('preview', False):
+                preview_pages = self.config.get('preview_pages', 3)
+                if total_pages_processed >= preview_pages:
+                    self.report_progress(f"预览模式：已抓取 {preview_pages} 页，停止抓取")
+                    break
+            
             # 报告进度
             self.report_progress(f"正在抓取第 {page_number} 页: {url}")
             
